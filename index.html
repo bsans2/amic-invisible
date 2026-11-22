@@ -40,13 +40,29 @@ const SB_URL='https://tcabiifusootxxayycvd.supabase.co', SB_KEY='sb_publishable_
 /* ================================================================ */
 const $=s=>document.querySelector(s),sb=supabase.createClient(SB_URL,SB_KEY);
 let S=null,EV=[],ME=null,ADM=false;
-const blank=()=>({id:crypto.randomUUID(),ev:'',date:'',bud:'',msg:'',pin:true,nr:true,hide:false,p:[],r:[],res:null,stale:false,pub:false});
+const blank=()=>({id:crypto.randomUUID(),ev:'',date:'',bud:'',msg:'',pin:true,nr:true,hide:false,gm:true,p:[],r:[],res:null,stale:false,pub:false});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $a=id=>S.p.find(x=>x.id===id),name=id=>($a(id)||{}).n||'?';
 const tok=()=>btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(18)))).replace(/\+/g,'-').replace(/\//g,'_');
+/* ---- Missatge amb camps automàtics ---- */
+const MSG=`Hola {nom}!
+
+Ja hem fet el sorteig de l’amic invisible «{esdeveniment}».
+Data: {data}
+Pressupost: {pressupost}
+
+Descobreix a qui has de fer el regal des d’aquest enllaç:
+{enllaç}
+Codi d’accés: {codi}
+
+Que passis una bona estona!`;
+function msgFor(x){const v={nom:x.n,esdeveniment:S.ev,data:S.date.split('-').reverse().join('/'),pressupost:S.bud,'enllaç':location.href.split('#')[0]+'#'+x.t,codi:S.pin?x.c:''};
+ return (S.msg||MSG).split('\n').filter(r=>S.pin||!r.includes('{codi}')).join('\n').replace(/\{([^}]+)\}/g,(m,k)=>k in v?v[k]:m)}
+function ins(v){const t=$('#msg');t.setRangeText(v,t.selectionStart,t.selectionEnd,'end');S.msg=t.value;save2();t.focus()}
 /* ---- Desat a Supabase ---- */
 function upd(){const n=S.ev||'Sense nom',e=EV.find(x=>x.id===S.id);e?(e.name=n,e.data=S):EV.push({id:S.id,name:n,data:S})}
 async function flush(){clearTimeout(flush.t);upd();const{error}=await sb.from('events').upsert({id:S.id,name:S.ev||'Sense nom',data:S,updated_at:new Date().toISOString()});$('#sub').textContent=error?'Error en desar: '+error.message:'Desat ✓';return error}
+function save2(){clearTimeout(flush.t);flush.t=setTimeout(flush,600)}
 function save(){S.stale=S.pub;$('#sub').textContent='Desant…';clearTimeout(flush.t);flush.t=setTimeout(flush,600)}
 /* ---- Sorteig amb restriccions (backtracking aleatori) ---- */
 function draw(){
@@ -59,19 +75,22 @@ function draw(){
  return go(0)?res:null}
 const valid=()=>S.res&&S.p.every(x=>S.res[x.id]&&S.res[x.id]!==x.id)&&new Set(Object.values(S.res)).size===S.p.length;
 /* ---- Accions ---- */
-function addP(){const i=$('#np'),n=i.value.trim();if(!n)return;S.p.push({id:'p'+Date.now().toString(36)+(Math.random()*1e3|0),n,h:'',t:tok(),c:String(1000+crypto.getRandomValues(new Uint16Array(1))[0]%9000)});S.res=null;save();render();$('#np').focus()}
+function addP(){const i=$('#np'),n=i.value.trim();if(!n)return;S.p.push({id:'p'+Date.now().toString(36)+(Math.random()*1e3|0),n,e:$('#ne').value.trim(),h:'',t:tok(),c:String(1000+crypto.getRandomValues(new Uint16Array(1))[0]%9000)});S.res=null;save();render();$('#np').focus()}
 function delP(id){S.p=S.p.filter(x=>x.id!==id);S.r=S.r.filter(r=>r.a!==id&&r.b!==id);S.res=null;save();render()}
 function addR(){const a=$('#ra').value,b=$('#rb').value,t=$('#rt').value;if(!a||!b||a===b)return alert('Tria dues persones diferents.');const add=(x,y)=>{if(!S.r.some(r=>r.a===x&&r.b===y&&r.t===t))S.r.push({a:x,b:y,t})};add(a,b);if($('#rm').checked)add(b,a);S.res=null;save();render()}
 function doDraw(){if(S.p.length<3)return alert('Calen almenys 3 participants.');if(S.res&&!confirm('Això substitueix el sorteig actual. Continuar?'))return;const r=draw();if(!r)return alert('Amb aquestes restriccions no hi ha cap sorteig possible. Revisa les regles.');S.res=r;save();render()}
 function setRes(a,b){S.res[a]=b;save();render()}
 async function mkLinks(){
  if(!valid())return alert('El sorteig té errors (files en vermell): repetits o algú s’autoregala.');
- const rows=S.p.map(x=>{const g=$a(S.res[x.id]);return{token:x.t,event_id:S.id,code:S.pin?x.c:null,payload:{n:x.n,g:g.n,h:g.h,ev:S.ev,d:S.date,b:S.bud,m:S.msg}}});
+ const rows=S.p.map(x=>{const g=$a(S.res[x.id]);return{token:x.t,event_id:S.id,code:S.pin?x.c:null,payload:{n:x.n,g:g.n,h:g.h,ev:S.ev,d:S.date,b:S.bud}}});
  if(await flush())return alert('No s’ha pogut desar l’esdeveniment.');
  let r=await sb.from('links').delete().eq('event_id',S.id);if(!r.error)r=await sb.from('links').insert(rows);
  if(r.error)return alert('Error: '+r.error.message);
  S.pub=true;S.stale=false;await flush();render()}
-async function cp(id,w){const x=$a(id),l=location.href.split('#')[0]+'#'+x.t,t=`Hola ${x.n}! Aquest és el teu enllaç per descobrir el teu amic invisible${S.ev?' de «'+S.ev+'»':''}: ${l}${S.pin?'\nCodi: '+x.c:''}`;if(w)return open('https://wa.me/?text='+encodeURIComponent(t));try{await navigator.clipboard.writeText(l);alert('Enllaç copiat.'+(S.pin?' Codi de '+x.n+': '+x.c:''))}catch(e){prompt('Copia l’enllaç:',l)}}
+async function cp(id,w){const x=$a(id),l=location.href.split('#')[0]+'#'+x.t;
+ if(w===1)return open('https://wa.me/?text='+encodeURIComponent(msgFor(x)));
+ if(w===2){const su=encodeURIComponent('Amic invisible'+(S.ev?' · '+S.ev:'')),b=encodeURIComponent(msgFor(x));x.s=true;flush();render();return S.gm?open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(x.e)}&su=${su}&body=${b}`):location.href=`mailto:${x.e}?subject=${su}&body=${b}`}
+ try{await navigator.clipboard.writeText(l);alert('Enllaç copiat.'+(S.pin?' Codi de '+x.n+': '+x.c:''))}catch(e){prompt('Copia l’enllaç:',l)}}
 function sel(id){upd();S={...blank(),...EV.find(x=>x.id===id).data};render()}
 function newEv(){upd();S=blank();save();render()}
 async function delEv(){if(!confirm('Eliminar aquest esdeveniment i els seus enllaços?'))return;await sb.from('events').delete().eq('id',S.id);EV=EV.filter(x=>x.id!==S.id);S=EV[0]?{...blank(),...EV[0].data}:blank();render()}
@@ -89,11 +108,10 @@ function render(){
 <section><div class="row"><select aria-label="Esdeveniment" onchange="sel(this.value)">${EV.map(e=>`<option value="${e.id}"${e.id===S.id?' selected':''}>${esc(e.name)}</option>`).join('')}</select><button class="s" onclick="newEv()">Nou</button><button class="s" onclick="delEv()">Elimina</button>${ADM?'<button class="s" onclick="admin()">Administració</button>':''}<button class="s" onclick="logout()">Surt</button></div></section>
 <section><h2>1. L’esdeveniment</h2>
  <div class="row"><input placeholder="Nom (ex. Nadal 2026)" aria-label="Nom" value="${esc(S.ev)}" oninput="S.ev=this.value;save()"><input type="date" aria-label="Data" value="${esc(S.date)}" oninput="S.date=this.value;save()"><input placeholder="Pressupost (ex. 20 €)" aria-label="Pressupost" value="${esc(S.bud)}" oninput="S.bud=this.value;save()"></div>
- <textarea rows="2" placeholder="Missatge per a tothom (opcional)" aria-label="Missatge" oninput="S.msg=this.value;save()">${esc(S.msg)}</textarea>
  <div class="row"><label><input type="checkbox" ${S.pin?'checked':''} onchange="S.pin=this.checked;save();render()">Protegir cada enllaç amb un codi de 4 xifres</label></div></section>
 <section><h2>2. Participants (${P.length})</h2>
- <div class="row"><input id="np" placeholder="Nom i Enter" aria-label="Nom del participant" onkeydown="event.key==='Enter'&&addP()"><button onclick="addP()">Afegeix</button></div>
- <table>${P.map(x=>`<tr><td>${esc(x.n)}</td><td><input placeholder="Pistes de regal (opcional)" aria-label="Pistes de ${esc(x.n)}" value="${esc(x.h)}" oninput="$a('${x.id}').h=this.value;save()"></td><td class="mu">${S.pin?'codi '+x.c:''}</td><td><button class="x" aria-label="Elimina ${esc(x.n)}" onclick="delP('${x.id}')">✕</button></td></tr>`).join('')||'<tr><td class="mu">Afegeix almenys 3 persones.</td></tr>'}</table></section>
+ <div class="row"><input id="np" placeholder="Nom" aria-label="Nom del participant" onkeydown="event.key==='Enter'&&addP()"><input id="ne" type="email" placeholder="Correu (opcional)" aria-label="Correu del participant" onkeydown="event.key==='Enter'&&addP()"><button onclick="addP()">Afegeix</button></div>
+ <table>${P.map(x=>`<tr><td>${esc(x.n)}</td><td><input type="email" placeholder="Correu" aria-label="Correu de ${esc(x.n)}" value="${esc(x.e)}" oninput="$a('${x.id}').e=this.value;save2()" style="margin-bottom:4px"><input placeholder="Pistes de regal (opcional)" aria-label="Pistes de ${esc(x.n)}" value="${esc(x.h)}" oninput="$a('${x.id}').h=this.value;save()"></td><td class="mu">${S.pin?'codi '+x.c:''}</td><td><button class="x" aria-label="Elimina ${esc(x.n)}" onclick="delP('${x.id}')">✕</button></td></tr>`).join('')||'<tr><td class="mu">Afegeix almenys 3 persones.</td></tr>'}</table></section>
 <section><h2>3. Restriccions i assignacions fixes</h2>
  <p class="mu">Per exemple: les parelles no es regalen entre elles, o algú ha de regalar a una persona concreta.</p>
  <div class="row"><select id="ra" aria-label="Persona">${opts()}</select><select id="rt" aria-label="Regla"><option value="no">no pot regalar a</option><option value="si">ha de regalar a</option></select><select id="rb" aria-label="Altra persona">${opts()}</select></div>
@@ -104,10 +122,13 @@ function render(){
  <div class="row"><button onclick="doDraw()">${S.res?'Torna a sortejar':'Sorteja'}</button>${S.res?`<label><input type="checkbox" ${S.hide?'checked':''} onchange="S.hide=this.checked;save();render()">Amaga els resultats (si jo també participo)</label>`:''}</div>
  ${S.res?`<table>${P.map(x=>{const g=S.res[x.id],bad=!g||g===x.id||dup[g]>1;return `<tr class="${bad?'bad':''}"><td>${esc(x.n)}</td><td>→</td><td>${S.hide?'•••':`<select aria-label="Amic invisible de ${esc(x.n)}" onchange="setRes('${x.id}',this.value)"><option value=""></option>${opts(g)}</select>`}</td></tr>`}).join('')}</table><p class="mu">Pots canviar a mà qualsevol assignació. Les files en vermell tenen errors (persona repetida o s’autoregala).</p>`:'<p class="mu">Encara no has fet el sorteig.</p>'}</section>
 ${S.res?`<section><h2>5. Enllaços per als participants</h2>
- <p class="mu">Cada persona només pot veure el seu propi amic invisible. ${S.pin?'El botó de WhatsApp inclou el codi; si vols més seguretat, envia’l per un altre canal.':''}</p>
+ <p class="mu">Cada persona només pot veure el seu propi amic invisible. El missatge s’omple sol amb les dades de cadascú; toca un camp per afegir-lo on tinguis el cursor.</p>
+ <textarea id="msg" rows="10" aria-label="Missatge" oninput="S.msg=this.value;save2()">${esc(S.msg||MSG)}</textarea>
+ <div class="row">${['nom','esdeveniment','data','pressupost','enllaç','codi'].map(k=>`<button class="s" onclick="ins('{${k}}')">{${k}}</button>`).join('')}<button class="s" onclick="S.msg='';save2();render()">Text d’exemple</button></div>
+ <div class="row"><label><input type="checkbox" ${S.gm?'checked':''} onchange="S.gm=this.checked;save2()">Obre els correus amb Gmail (web); si ho desmarques, s’obre l’aplicació de correu</label></div>
  ${S.stale?'<p class="mu" style="color:var(--rd)" role="alert">Has fet canvis després de publicar: torna a publicar els enllaços perquè els participants vegin el resultat actual.</p>':''}
  <div class="row"><button onclick="mkLinks()">${S.pub?'Torna a publicar':'Publica'} els enllaços</button></div>
- ${S.pub?`<table>${P.map(x=>`<tr><td>${esc(x.n)}</td><td><button class="s" onclick="cp('${x.id}',0)">Copia enllaç</button> <button class="s" onclick="cp('${x.id}',1)">WhatsApp</button> <a href="${location.href.split('#')[0]}#${x.t}" target="_blank" rel="noopener">Prova</a></td></tr>`).join('')}</table>`:''}</section>`:''}`;
+ ${S.pub?`<table>${P.map(x=>`<tr><td>${esc(x.n)}${x.s?' ✓':''}</td><td><button class="s" onclick="cp('${x.id}',0)">Copia enllaç</button> <button class="s" onclick="cp('${x.id}',1)">WhatsApp</button> ${x.e?`<button class="s" onclick="cp('${x.id}',2)">Correu</button>`:''} <a href="${location.href.split('#')[0]}#${x.t}" target="_blank" rel="noopener">Prova</a></td></tr>`).join('')}</table><p class="mu">Cada correu s’obre ja redactat perquè l’enviïs des del teu compte; ✓ indica que l’has obert.</p>`:''}</section>`:''}`;
  if(P.length>1)$('#rb').selectedIndex=1}
 /* ---- Panell de l’administrador general ---- */
 async function admin(){upd();const{data:o,error}=await sb.rpc('admin_overview');if(error||!o)return alert('No tens permís d’administrador.');const E=o.events,c=k=>E.filter(e=>e[k]).length;
