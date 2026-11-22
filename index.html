@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ca"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Amic Invisible</title>
+<style>
+:root{--bg:#eef3f1;--pn:#fff;--tx:#16211e;--mu:#5d6e69;--sp:#12372f;--rd:#c8202f;--gd:#d9a441;--bd:#cfdad6;--bad:#fbe3e3;--in:#f6f9f8}
+@media(prefers-color-scheme:dark){:root{--bg:#0c1a17;--pn:#13261f;--tx:#e9f0ee;--mu:#9bb0aa;--sp:#0a1f1a;--rd:#ef5a68;--gd:#e6b95a;--bd:#25423a;--bad:#4a2226;--in:#0c1a17}}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx)}
+header{background:var(--sp);color:#fff;border-bottom:6px solid var(--gd);padding:26px 16px 20px}
+header>div,main{max-width:780px;margin:0 auto}
+main{padding:8px 16px 60px}
+h1{font:700 32px/1.1 "Iowan Old Style",Georgia,serif;margin:0 0 6px}
+h2{font:700 20px "Iowan Old Style",Georgia,serif;margin:0 0 10px}
+header p{margin:0;color:#b9cfc8;font-size:15px}
+section{background:var(--pn);border-left:5px solid var(--rd);padding:16px 18px;margin:18px 0}
+input,select,textarea{font:inherit;color:inherit;background:var(--in);border:1px solid var(--bd);border-radius:4px;padding:8px 10px;width:100%}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--gd);outline-offset:1px}
+button{font:inherit;font-weight:600;cursor:pointer;border:0;border-radius:4px;padding:9px 15px;background:var(--rd);color:#fff}
+button.s{background:transparent;color:var(--tx);border:1px solid var(--bd)}
+button.x{background:none;color:var(--mu);padding:3px 8px}
+label{display:flex;gap:8px;align-items:center;font-size:15px}label input{width:auto}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}.row>*{flex:1 1 150px}.row>button,.row>a{flex:0 0 auto}
+.mu{color:var(--mu);font-size:14px;margin:4px 0}
+table{width:100%;border-collapse:collapse}td{padding:6px 4px;border-bottom:1px solid var(--bd);vertical-align:middle}
+.bad td{background:var(--bad)}
+.chip{display:inline-flex;align-items:center;border:1px solid var(--bd);border-radius:99px;padding:1px 2px 1px 11px;margin:3px 3px 3px 0;font-size:14px}
+a{color:var(--rd);font-weight:600}
+.tag{background:var(--pn);border:2px dashed var(--gd);margin:40px auto;max-width:460px;padding:34px 22px;text-align:center;position:relative}
+.tag:before{content:"";position:absolute;top:-14px;left:50%;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:var(--bg);border:2px solid var(--gd)}
+.big{font:700 44px/1.1 "Iowan Old Style",Georgia,serif;color:var(--rd);margin:14px 0;overflow-wrap:anywhere}
+.hide{display:none}
+</style></head><body>
+<header><div><h1>Amic Invisible</h1><p id="sub">Panell d’administració</p></div></header>
+<main id="app"></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+/* ====== CONFIGURACIÓ: Supabase → Project Settings → API ====== */
+const SB_URL=https://tcabiifusootxxayycvd.supabase.co, SB_KEY=sb_publishable_D4M-ZPDR3DvLDtXRdbZEww_Bx70jW6Z;
+/* ================================================================ */
+const $=s=>document.querySelector(s),sb=supabase.createClient(SB_URL,SB_KEY);
+let S=null,EV=[];
+const blank=()=>({id:crypto.randomUUID(),ev:'',date:'',bud:'',msg:'',pin:true,nr:true,hide:false,p:[],r:[],res:null,stale:false,pub:false});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $a=id=>S.p.find(x=>x.id===id),name=id=>($a(id)||{}).n||'?';
+const tok=()=>btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(18)))).replace(/\+/g,'-').replace(/\//g,'_');
+/* ---- Desat a Supabase ---- */
+function upd(){const n=S.ev||'Sense nom',e=EV.find(x=>x.id===S.id);e?(e.name=n,e.data=S):EV.push({id:S.id,name:n,data:S})}
+async function flush(){clearTimeout(flush.t);upd();const{error}=await sb.from('events').upsert({id:S.id,name:S.ev||'Sense nom',data:S,updated_at:new Date().toISOString()});$('#sub').textContent=error?'Error en desar: '+error.message:'Desat ✓';return error}
+function save(){S.stale=S.pub;$('#sub').textContent='Desant…';clearTimeout(flush.t);flush.t=setTimeout(flush,600)}
+/* ---- Sorteig amb restriccions (backtracking aleatori) ---- */
+function draw(){
+ const ids=S.p.map(x=>x.id),no={},fx={};ids.forEach(i=>no[i]=new Set([i]));
+ S.r.forEach(r=>{if(r.t==='no')no[r.a]&&no[r.a].add(r.b);else fx[r.a]=r.b});
+ const sh=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+ const ord=[...ids.filter(i=>fx[i]),...sh(ids.filter(i=>!fx[i]))],res={},used=new Set();let n=0;
+ const ok=(a,b)=>a!==b&&!used.has(b)&&(fx[a]===b||!no[a].has(b))&&!(S.nr&&res[b]===a);
+ const go=k=>{if(k===ord.length)return true;if(++n>3e5)return false;const a=ord[k];for(const b of fx[a]?[fx[a]]:sh(ids))if(ok(a,b)){res[a]=b;used.add(b);if(go(k+1))return true;delete res[a];used.delete(b)}return false};
+ return go(0)?res:null}
+const valid=()=>S.res&&S.p.every(x=>S.res[x.id]&&S.res[x.id]!==x.id)&&new Set(Object.values(S.res)).size===S.p.length;
+/* ---- Accions ---- */
+function addP(){const i=$('#np'),n=i.value.trim();if(!n)return;S.p.push({id:'p'+Date.now().toString(36)+(Math.random()*1e3|0),n,h:'',t:tok(),c:String(1000+crypto.getRandomValues(new Uint16Array(1))[0]%9000)});S.res=null;save();render();$('#np').focus()}
+function delP(id){S.p=S.p.filter(x=>x.id!==id);S.r=S.r.filter(r=>r.a!==id&&r.b!==id);S.res=null;save();render()}
+function addR(){const a=$('#ra').value,b=$('#rb').value,t=$('#rt').value;if(!a||!b||a===b)return alert('Tria dues persones diferents.');const add=(x,y)=>{if(!S.r.some(r=>r.a===x&&r.b===y&&r.t===t))S.r.push({a:x,b:y,t})};add(a,b);if($('#rm').checked)add(b,a);S.res=null;save();render()}
+function doDraw(){if(S.p.length<3)return alert('Calen almenys 3 participants.');if(S.res&&!confirm('Això substitueix el sorteig actual. Continuar?'))return;const r=draw();if(!r)return alert('Amb aquestes restriccions no hi ha cap sorteig possible. Revisa les regles.');S.res=r;save();render()}
+function setRes(a,b){S.res[a]=b;save();render()}
+async function mkLinks(){
+ if(!valid())return alert('El sorteig té errors (files en vermell): repetits o algú s’autoregala.');
+ const rows=S.p.map(x=>{const g=$a(S.res[x.id]);return{token:x.t,event_id:S.id,code:S.pin?x.c:null,payload:{n:x.n,g:g.n,h:g.h,ev:S.ev,d:S.date,b:S.bud,m:S.msg}}});
+ if(await flush())return alert('No s’ha pogut desar l’esdeveniment.');
+ let r=await sb.from('links').delete().eq('event_id',S.id);if(!r.error)r=await sb.from('links').insert(rows);
+ if(r.error)return alert('Error: '+r.error.message);
+ S.pub=true;S.stale=false;await flush();render()}
+async function cp(id,w){const x=$a(id),l=location.href.split('#')[0]+'#'+x.t,t=`Hola ${x.n}! Aquest és el teu enllaç per descobrir el teu amic invisible${S.ev?' de «'+S.ev+'»':''}: ${l}${S.pin?'\nCodi: '+x.c:''}`;if(w)return open('https://wa.me/?text='+encodeURIComponent(t));try{await navigator.clipboard.writeText(l);alert('Enllaç copiat.'+(S.pin?' Codi de '+x.n+': '+x.c:''))}catch(e){prompt('Copia l’enllaç:',l)}}
+function sel(id){upd();S={...blank(),...EV.find(x=>x.id===id).data};render()}
+function newEv(){upd();S=blank();save();render()}
+async function delEv(){if(!confirm('Eliminar aquest esdeveniment i els seus enllaços?'))return;await sb.from('events').delete().eq('id',S.id);EV=EV.filter(x=>x.id!==S.id);S=EV[0]?{...blank(),...EV[0].data}:blank();render()}
+/* ---- Accés d’administrador ---- */
+function login(m){$('#app').innerHTML=`<section><h2>Accés d’administrador</h2><div class="row"><input id="em" type="email" placeholder="Correu" aria-label="Correu"><input id="pw" type="password" placeholder="Contrasenya" aria-label="Contrasenya" onkeydown="event.key==='Enter'&&doLogin()"><button onclick="doLogin()">Entra</button></div><p class="mu" role="alert">${esc(m)}</p></section>`}
+async function doLogin(){const{error}=await sb.auth.signInWithPassword({email:$('#em').value.trim(),password:$('#pw').value});error?login('Correu o contrasenya incorrectes.'):load()}
+async function load(){const{data,error}=await sb.from('events').select('id,name,data').order('updated_at',{ascending:false});if(error)return login(error.message);EV=data;S=data[0]?{...blank(),...data[0].data}:blank();render()}
+/* ---- Vista de l’administrador ---- */
+function render(){
+ upd();const P=S.p,opts=sel=>P.map(x=>`<option value="${x.id}"${x.id===sel?' selected':''}>${esc(x.n)}</option>`).join('');
+ const dup={};if(S.res)Object.values(S.res).forEach(v=>dup[v]=(dup[v]||0)+1);
+ $('#app').innerHTML=`
+<section><div class="row"><select aria-label="Esdeveniment" onchange="sel(this.value)">${EV.map(e=>`<option value="${e.id}"${e.id===S.id?' selected':''}>${esc(e.name)}</option>`).join('')}</select><button class="s" onclick="newEv()">Nou</button><button class="s" onclick="delEv()">Elimina</button><button class="s" onclick="sb.auth.signOut().then(()=>login(''))">Surt</button></div></section>
+<section><h2>1. L’esdeveniment</h2>
+ <div class="row"><input placeholder="Nom (ex. Nadal 2026)" aria-label="Nom" value="${esc(S.ev)}" oninput="S.ev=this.value;save()"><input type="date" aria-label="Data" value="${esc(S.date)}" oninput="S.date=this.value;save()"><input placeholder="Pressupost (ex. 20 €)" aria-label="Pressupost" value="${esc(S.bud)}" oninput="S.bud=this.value;save()"></div>
+ <textarea rows="2" placeholder="Missatge per a tothom (opcional)" aria-label="Missatge" oninput="S.msg=this.value;save()">${esc(S.msg)}</textarea>
+ <div class="row"><label><input type="checkbox" ${S.pin?'checked':''} onchange="S.pin=this.checked;save();render()">Protegir cada enllaç amb un codi de 4 xifres</label></div></section>
+<section><h2>2. Participants (${P.length})</h2>
+ <div class="row"><input id="np" placeholder="Nom i Enter" aria-label="Nom del participant" onkeydown="event.key==='Enter'&&addP()"><button onclick="addP()">Afegeix</button></div>
+ <table>${P.map(x=>`<tr><td>${esc(x.n)}</td><td><input placeholder="Pistes de regal (opcional)" aria-label="Pistes de ${esc(x.n)}" value="${esc(x.h)}" oninput="$a('${x.id}').h=this.value;save()"></td><td class="mu">${S.pin?'codi '+x.c:''}</td><td><button class="x" aria-label="Elimina ${esc(x.n)}" onclick="delP('${x.id}')">✕</button></td></tr>`).join('')||'<tr><td class="mu">Afegeix almenys 3 persones.</td></tr>'}</table></section>
+<section><h2>3. Restriccions i assignacions fixes</h2>
+ <p class="mu">Per exemple: les parelles no es regalen entre elles, o algú ha de regalar a una persona concreta.</p>
+ <div class="row"><select id="ra" aria-label="Persona">${opts()}</select><select id="rt" aria-label="Regla"><option value="no">no pot regalar a</option><option value="si">ha de regalar a</option></select><select id="rb" aria-label="Altra persona">${opts()}</select></div>
+ <div class="row"><label><input type="checkbox" id="rm">En totes dues direccions</label><button class="s" onclick="addR()">Afegeix regla</button></div>
+ <div>${S.r.map((r,i)=>`<span class="chip">${esc(name(r.a))} ${r.t==='no'?'✗':'→'} ${esc(name(r.b))}<button class="x" aria-label="Elimina la regla" onclick="S.r.splice(${i},1);S.res=null;save();render()">✕</button></span>`).join('')||'<span class="mu">Cap regla.</span>'}</div>
+ <div class="row"><label><input type="checkbox" ${S.nr?'checked':''} onchange="S.nr=this.checked;save()">Evita regals recíprocs (A→B i B→A)</label></div></section>
+<section><h2>4. Sorteig</h2>
+ <div class="row"><button onclick="doDraw()">${S.res?'Torna a sortejar':'Sorteja'}</button>${S.res?`<label><input type="checkbox" ${S.hide?'checked':''} onchange="S.hide=this.checked;save();render()">Amaga els resultats (si jo també participo)</label>`:''}</div>
+ ${S.res?`<table>${P.map(x=>{const g=S.res[x.id],bad=!g||g===x.id||dup[g]>1;return `<tr class="${bad?'bad':''}"><td>${esc(x.n)}</td><td>→</td><td>${S.hide?'•••':`<select aria-label="Amic invisible de ${esc(x.n)}" onchange="setRes('${x.id}',this.value)"><option value=""></option>${opts(g)}</select>`}</td></tr>`}).join('')}</table><p class="mu">Pots canviar a mà qualsevol assignació. Les files en vermell tenen errors (persona repetida o s’autoregala).</p>`:'<p class="mu">Encara no has fet el sorteig.</p>'}</section>
+${S.res?`<section><h2>5. Enllaços per als participants</h2>
+ <p class="mu">Cada persona només pot veure el seu propi amic invisible. ${S.pin?'El botó de WhatsApp inclou el codi; si vols més seguretat, envia’l per un altre canal.':''}</p>
+ ${S.stale?'<p class="mu" style="color:var(--rd)" role="alert">Has fet canvis després de publicar: torna a publicar els enllaços perquè els participants vegin el resultat actual.</p>':''}
+ <div class="row"><button onclick="mkLinks()">${S.pub?'Torna a publicar':'Publica'} els enllaços</button></div>
+ ${S.pub?`<table>${P.map(x=>`<tr><td>${esc(x.n)}</td><td><button class="s" onclick="cp('${x.id}',0)">Copia enllaç</button> <button class="s" onclick="cp('${x.id}',1)">WhatsApp</button> <a href="${location.href.split('#')[0]}#${x.t}" target="_blank" rel="noopener">Prova</a></td></tr>`).join('')}</table>`:''}</section>`:''}`;
+ if(P.length>1)$('#rb').selectedIndex=1}
+/* ---- Vista del participant ---- */
+function viewP(tk){$('#sub').textContent='Tens un missatge secret';
+ $('#app').innerHTML=`<div class="tag"><h2>Descobreix el teu amic invisible</h2><p class="mu" id="ms">Toca el botó quan estiguis sol o sola.</p><p id="cd" class="hide"><input id="pn" inputmode="numeric" aria-label="Codi" placeholder="Codi" style="max-width:150px;text-align:center"></p><p><button onclick="reveal()">Descobreix</button></p><p id="er" class="mu" role="alert"></p></div>`;
+ window.reveal=async()=>{const c=$('#pn').value.trim()||null,{data:o,error}=await sb.rpc('get_link',{p_token:tk,p_code:c});
+  if(error||!o)return $('#er').textContent='Aquest enllaç no és vàlid.';
+  if(o.need){$('#cd').classList.remove('hide');$('#ms').textContent='Escriu el codi que t’han enviat.';return $('#er').textContent=c?'Codi incorrecte. Torna-ho a provar.':''}
+  $('#app').innerHTML=`<div class="tag"><p class="mu">Hola, ${esc(o.n)}${o.ev?' · '+esc(o.ev):''}</p><p>El teu amic invisible és</p><div class="big">${esc(o.g)}</div>${o.h?`<p>Pistes de regal: ${esc(o.h)}</p>`:''}${o.d||o.b?`<p class="mu">${[o.d&&'Data: '+esc(o.d),o.b&&'Pressupost: '+esc(o.b)].filter(Boolean).join(' · ')}</p>`:''}${o.m?`<p>${esc(o.m)}</p>`:''}<p class="mu">Que quedi en secret.</p></div>`}}
+/* ---- Inici ---- */
+(async()=>{const h=location.hash.slice(1);if(h.length>=20)return viewP(h);const{data:{session}}=await sb.auth.getSession();session?load():login('')})();
+addEventListener('hashchange',()=>location.reload());
+</script></body></html>
