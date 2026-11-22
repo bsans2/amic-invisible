@@ -34,11 +34,10 @@ a{color:var(--rd);font-weight:600}
 <header><div><h1>Amic Invisible</h1><p id="sub">Organitza el teu amic invisible</p></div></header>
 <main id="app"></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
 <script>
-/* ====== CONFIGURACIÓ: Supabase → Project Settings → API ====== */
-const SB_URL='https://tcabiifusootxxayycvd.supabase.co', SB_KEY='sb_publishable_D4M-ZPDR3DvLDtXRdbZEww_Bx70jW6Z';
-/* ================================================================ */
-const $=s=>document.querySelector(s),sb=supabase.createClient(SB_URL,SB_KEY);
+const CFG=typeof SB_URL!=='undefined'&&/^https:\/\/[^.\/]+\.supabase\.co\/?$/.test(SB_URL);
+const $=s=>document.querySelector(s),sb=CFG?supabase.createClient(SB_URL,SB_KEY):null;
 let S=null,EV=[],ME=null,ADM=false;
 const blank=()=>({id:crypto.randomUUID(),ev:'',date:'',bud:'',msg:'',pin:true,nr:true,hide:false,gm:true,p:[],r:[],res:null,stale:false,pub:false});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -153,6 +152,6 @@ function viewP(tk){$('#sub').textContent='Tens un missatge secret';
   if(o.need){$('#cd').classList.remove('hide');$('#ms').textContent='Escriu el codi que t’han enviat.';return $('#er').textContent=c?'Codi incorrecte. Torna-ho a provar.':''}
   $('#app').innerHTML=`<div class="tag"><p class="mu">Hola, ${esc(o.n)}${o.ev?' · '+esc(o.ev):''}</p><p>El teu amic invisible és</p><div class="big">${esc(o.g)}</div>${o.h?`<p>Pistes de regal: ${esc(o.h)}</p>`:''}${o.d||o.b?`<p class="mu">${[o.d&&'Data: '+esc(o.d),o.b&&'Pressupost: '+esc(o.b)].filter(Boolean).join(' · ')}</p>`:''}${o.m?`<p>${esc(o.m)}</p>`:''}<p class="mu">Que quedi en secret.</p></div>`}}
 /* ---- Inici ---- */
-(async()=>{const h=location.hash.slice(1);if(h.length>=20)return viewP(h);const{data:{session}}=await sb.auth.getSession();session?load():login('')})();
+(async()=>{if(!CFG)return $('#app').innerHTML='<section><h2>Falta configurar Supabase</h2><p class="mu">Edita el fitxer config.js amb la URL i la clau pública del teu projecte. Mira el README.</p></section>';const h=location.hash.slice(1);if(h.length>=20)return viewP(h);const{data:{session}}=await sb.auth.getSession();session?load():login('')})();
 addEventListener('hashchange',()=>location.reload());
 </script></body></html>
