@@ -42,6 +42,7 @@ const $=s=>document.querySelector(s),sb=supabase.createClient(SB_URL,SB_KEY);
 let S=null,EV=[],ME=null,ADM=false;
 const blank=()=>({id:crypto.randomUUID(),ev:'',date:'',bud:'',msg:'',pin:true,nr:true,hide:false,gm:true,p:[],r:[],res:null,stale:false,pub:false});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const okE=e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e||'');
 const $a=id=>S.p.find(x=>x.id===id),name=id=>($a(id)||{}).n||'?';
 const tok=()=>btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(18)))).replace(/\+/g,'-').replace(/\//g,'_');
 /* ---- Missatge amb camps automàtics ---- */
@@ -75,12 +76,13 @@ function draw(){
  return go(0)?res:null}
 const valid=()=>S.res&&S.p.every(x=>S.res[x.id]&&S.res[x.id]!==x.id)&&new Set(Object.values(S.res)).size===S.p.length;
 /* ---- Accions ---- */
-function addP(){const i=$('#np'),n=i.value.trim();if(!n)return;S.p.push({id:'p'+Date.now().toString(36)+(Math.random()*1e3|0),n,e:$('#ne').value.trim(),h:'',t:tok(),c:String(1000+crypto.getRandomValues(new Uint16Array(1))[0]%9000)});S.res=null;save();render();$('#np').focus()}
+function addP(){const i=$('#np'),n=i.value.trim();const e=$('#ne').value.trim();if(!n)return;if(!okE(e))return alert('Introdueix un correu vàlid per a '+n+'.');S.p.push({id:'p'+Date.now().toString(36)+(Math.random()*1e3|0),n,e,h:'',t:tok(),c:String(1000+crypto.getRandomValues(new Uint16Array(1))[0]%9000)});S.res=null;save();render();$('#np').focus()}
 function delP(id){S.p=S.p.filter(x=>x.id!==id);S.r=S.r.filter(r=>r.a!==id&&r.b!==id);S.res=null;save();render()}
 function addR(){const a=$('#ra').value,b=$('#rb').value,t=$('#rt').value;if(!a||!b||a===b)return alert('Tria dues persones diferents.');const add=(x,y)=>{if(!S.r.some(r=>r.a===x&&r.b===y&&r.t===t))S.r.push({a:x,b:y,t})};add(a,b);if($('#rm').checked)add(b,a);S.res=null;save();render()}
-function doDraw(){if(S.p.length<3)return alert('Calen almenys 3 participants.');if(S.res&&!confirm('Això substitueix el sorteig actual. Continuar?'))return;const r=draw();if(!r)return alert('Amb aquestes restriccions no hi ha cap sorteig possible. Revisa les regles.');S.res=r;save();render()}
+function doDraw(){if(S.p.length<3)return alert('Calen almenys 3 participants.');const nb=S.p.filter(x=>!okE(x.e));if(nb.length)return alert('Falta un correu vàlid a: '+nb.map(x=>x.n).join(', ')+'.');if(S.res&&!confirm('Això substitueix el sorteig actual. Continuar?'))return;const r=draw();if(!r)return alert('Amb aquestes restriccions no hi ha cap sorteig possible. Revisa les regles.');S.res=r;save();render()}
 function setRes(a,b){S.res[a]=b;save();render()}
 async function mkLinks(){
+ const nb=S.p.filter(x=>!okE(x.e));if(nb.length)return alert('Falta un correu vàlid a: '+nb.map(x=>x.n).join(', ')+'.');
  if(!valid())return alert('El sorteig té errors (files en vermell): repetits o algú s’autoregala.');
  const rows=S.p.map(x=>{const g=$a(S.res[x.id]);return{token:x.t,event_id:S.id,code:S.pin?x.c:null,payload:{n:x.n,g:g.n,h:g.h,ev:S.ev,d:S.date,b:S.bud}}});
  if(await flush())return alert('No s’ha pogut desar l’esdeveniment.');
@@ -93,13 +95,13 @@ async function cp(id,w){const x=$a(id),l=location.href.split('#')[0]+'#'+x.t;
  try{await navigator.clipboard.writeText(l);alert('Enllaç copiat.'+(S.pin?' Codi de '+x.n+': '+x.c:''))}catch(e){prompt('Copia l’enllaç:',l)}}
 function sel(id){upd();S={...blank(),...EV.find(x=>x.id===id).data};render()}
 function newEv(){upd();S=blank();save();render()}
-async function delEv(){if(!confirm('Eliminar aquest esdeveniment i els seus enllaços?'))return;await sb.from('events').delete().eq('id',S.id);EV=EV.filter(x=>x.id!==S.id);S=EV[0]?{...blank(),...EV[0].data}:blank();render()}
+async function delEv(){if(!confirm('Eliminar aquest esdeveniment i els seus enllaços?'))return;await sb.from('events').delete().eq('id',S.id);EV=EV.filter(x=>x.id!==S.id);if(!EV.length){S=blank();return welcome()}S={...blank(),...EV[0].data};render()}
 /* ---- Accés d’administrador ---- */
 function login(m,up){$('#app').innerHTML=`<section><h2>${up?'Crea el teu compte':'Entra al teu compte'}</h2><div class="row"><input id="em" type="email" name="email" autocomplete="username" placeholder="Correu" aria-label="Correu"><input id="pw" type="password" name="password" autocomplete="${up?'new-password':'current-password'}" placeholder="Contrasenya (mínim 6)" aria-label="Contrasenya" onkeydown="event.key==='Enter'&&(${up?'doSignup()':'doLogin()'})"></div><div class="row"><label><input type="checkbox" onchange="$('#pw').type=this.checked?'text':'password'">Mostra la contrasenya</label></div><div class="row"><button onclick="${up?'doSignup()':'doLogin()'}">${up?'Crea el compte':'Entra'}</button><button class="s" onclick="login('',${!up})">${up?'Ja tinc un compte':'Crea un compte nou'}</button></div><p class="mu" role="alert">${esc(m)}</p></section>`}
 async function doSignup(){const{data,error}=await sb.auth.signUp({email:$('#em').value.trim(),password:$('#pw').value});if(error)return login(error.message,true);data.session?load():login('Compte creat. Revisa el correu i confirma l’adreça abans d’entrar.')}
 async function logout(){await sb.auth.signOut();S=null;EV=[];ME=null;ADM=false;login('')}
 async function doLogin(){const{error}=await sb.auth.signInWithPassword({email:$('#em').value.trim(),password:$('#pw').value});error?login('Correu o contrasenya incorrectes.'):load()}
-async function load(){const{data:{user}}=await sb.auth.getUser();if(!user)return login('');ME=user;ADM=(await sb.rpc('is_admin')).data===true;const{data,error}=await sb.from('events').select('id,name,data').eq('owner',ME.id).order('updated_at',{ascending:false});if(error)return login(error.message);EV=data;S=data[0]?{...blank(),...data[0].data}:blank();render()}
+async function load(){const{data:{user}}=await sb.auth.getUser();if(!user)return login('');ME=user;ADM=(await sb.rpc('is_admin')).data===true;const{data,error}=await sb.from('events').select('id,name,data').eq('owner',ME.id).order('updated_at',{ascending:false});if(error)return login(error.message);EV=data;S=data[0]?{...blank(),...data[0].data}:blank();data.length?render():welcome()}
 /* ---- Vista de l’administrador ---- */
 function render(){
  upd();const P=S.p,opts=sel=>P.map(x=>`<option value="${x.id}"${x.id===sel?' selected':''}>${esc(x.n)}</option>`).join('');
@@ -107,11 +109,11 @@ function render(){
  $('#app').innerHTML=`
 <section><div class="row"><select aria-label="Esdeveniment" onchange="sel(this.value)">${EV.map(e=>`<option value="${e.id}"${e.id===S.id?' selected':''}>${esc(e.name)}</option>`).join('')}</select><button class="s" onclick="newEv()">Nou</button><button class="s" onclick="delEv()">Elimina</button>${ADM?'<button class="s" onclick="admin()">Administració</button>':''}<button class="s" onclick="logout()">Surt</button></div></section>
 <section><h2>1. L’esdeveniment</h2>
- <div class="row"><input placeholder="Nom (ex. Nadal 2026)" aria-label="Nom" value="${esc(S.ev)}" oninput="S.ev=this.value;save()"><input type="date" aria-label="Data" value="${esc(S.date)}" oninput="S.date=this.value;save()"><input placeholder="Pressupost (ex. 20 €)" aria-label="Pressupost" value="${esc(S.bud)}" oninput="S.bud=this.value;save()"></div>
+ <div class="row"><input id="evn" placeholder="Nom (ex. Nadal 2026)" aria-label="Nom" value="${esc(S.ev)}" oninput="S.ev=this.value;save()"><input type="date" aria-label="Data" value="${esc(S.date)}" oninput="S.date=this.value;save()"><input placeholder="Pressupost (ex. 20 €)" aria-label="Pressupost" value="${esc(S.bud)}" oninput="S.bud=this.value;save()"></div>
  <div class="row"><label><input type="checkbox" ${S.pin?'checked':''} onchange="S.pin=this.checked;save();render()">Protegir cada enllaç amb un codi de 4 xifres</label></div></section>
 <section><h2>2. Participants (${P.length})</h2>
- <div class="row"><input id="np" placeholder="Nom" aria-label="Nom del participant" onkeydown="event.key==='Enter'&&addP()"><input id="ne" type="email" placeholder="Correu (opcional)" aria-label="Correu del participant" onkeydown="event.key==='Enter'&&addP()"><button onclick="addP()">Afegeix</button></div>
- <table>${P.map(x=>`<tr><td>${esc(x.n)}</td><td><input type="email" placeholder="Correu" aria-label="Correu de ${esc(x.n)}" value="${esc(x.e)}" oninput="$a('${x.id}').e=this.value;save2()" style="margin-bottom:4px"><input placeholder="Pistes de regal (opcional)" aria-label="Pistes de ${esc(x.n)}" value="${esc(x.h)}" oninput="$a('${x.id}').h=this.value;save()"></td><td class="mu">${S.pin?'codi '+x.c:''}</td><td><button class="x" aria-label="Elimina ${esc(x.n)}" onclick="delP('${x.id}')">✕</button></td></tr>`).join('')||'<tr><td class="mu">Afegeix almenys 3 persones.</td></tr>'}</table></section>
+ <div class="row"><input id="np" placeholder="Nom" aria-label="Nom del participant" onkeydown="event.key==='Enter'&&addP()"><input id="ne" type="email" placeholder="Correu (obligatori)" aria-label="Correu del participant" onkeydown="event.key==='Enter'&&addP()"><button onclick="addP()">Afegeix</button></div>
+ <table>${P.map(x=>`<tr><td>${esc(x.n)}</td><td><input type="email" placeholder="Correu" aria-label="Correu de ${esc(x.n)}" value="${esc(x.e)}" oninput="$a('${x.id}').e=this.value;save2()" style="margin-bottom:4px${okE(x.e)?'':';border-color:var(--rd)'}"><input placeholder="Pistes de regal (opcional)" aria-label="Pistes de ${esc(x.n)}" value="${esc(x.h)}" oninput="$a('${x.id}').h=this.value;save()"></td><td class="mu">${S.pin?'codi '+x.c:''}</td><td><button class="x" aria-label="Elimina ${esc(x.n)}" onclick="delP('${x.id}')">✕</button></td></tr>`).join('')||'<tr><td class="mu">Afegeix almenys 3 persones.</td></tr>'}</table></section>
 <section><h2>3. Restriccions i assignacions fixes</h2>
  <p class="mu">Per exemple: les parelles no es regalen entre elles, o algú ha de regalar a una persona concreta.</p>
  <div class="row"><select id="ra" aria-label="Persona">${opts()}</select><select id="rt" aria-label="Regla"><option value="no">no pot regalar a</option><option value="si">ha de regalar a</option></select><select id="rb" aria-label="Altra persona">${opts()}</select></div>
@@ -128,15 +130,21 @@ ${S.res?`<section><h2>5. Enllaços per als participants</h2>
  <div class="row"><label><input type="checkbox" ${S.gm?'checked':''} onchange="S.gm=this.checked;save2()">Obre els correus amb Gmail (web); si ho desmarques, s’obre l’aplicació de correu</label></div>
  ${S.stale?'<p class="mu" style="color:var(--rd)" role="alert">Has fet canvis després de publicar: torna a publicar els enllaços perquè els participants vegin el resultat actual.</p>':''}
  <div class="row"><button onclick="mkLinks()">${S.pub?'Torna a publicar':'Publica'} els enllaços</button></div>
- ${S.pub?`<table>${P.map(x=>`<tr><td>${esc(x.n)}${x.s?' ✓':''}</td><td><button class="s" onclick="cp('${x.id}',0)">Copia enllaç</button> <button class="s" onclick="cp('${x.id}',1)">WhatsApp</button> ${x.e?`<button class="s" onclick="cp('${x.id}',2)">Correu</button>`:''} <a href="${location.href.split('#')[0]}#${x.t}" target="_blank" rel="noopener">Prova</a></td></tr>`).join('')}</table><p class="mu">Cada correu s’obre ja redactat perquè l’enviïs des del teu compte; ✓ indica que l’has obert.</p>`:''}</section>`:''}`;
+ ${S.pub?`<table>${P.map(x=>`<tr><td>${esc(x.n)}${x.s?' ✓':''}</td><td><button class="s" onclick="cp('${x.id}',0)">Copia enllaç</button> <button class="s" onclick="cp('${x.id}',1)">WhatsApp</button> <button class="s" onclick="cp('${x.id}',2)">Correu</button> <a href="${location.href.split('#')[0]}#${x.t}" target="_blank" rel="noopener">Prova</a></td></tr>`).join('')}</table><p class="mu">Cada correu s’obre ja redactat perquè l’enviïs des del teu compte; ✓ indica que l’has obert.</p>`:''}</section>`:''}`;
  if(P.length>1)$('#rb').selectedIndex=1}
+/* ---- Pantalla de benvinguda (sense esdeveniments) ---- */
+function welcome(){$('#sub').textContent='Organitza el teu amic invisible';
+ $('#app').innerHTML=`<section><div class="row"><div></div>${ADM?'<button class="s" onclick="admin()">Administració</button>':''}<button class="s" onclick="logout()">Surt</button></div></section>
+ <div class="tag"><h2>Encara no tens cap esdeveniment</h2><p>Crea’n un i en pocs minuts tindràs el sorteig fet: afegeix els participants, sorteja i envia a cadascú el seu amic invisible.</p><p><button onclick="startEv()">Crea el teu primer esdeveniment</button></p></div>`}
+function startEv(){EV.push({id:S.id,name:'Sense nom',data:S});save();render();$('#evn').focus()}
+function back(){EV.length?render():welcome()}
 /* ---- Panell de l’administrador general ---- */
-async function admin(){upd();const{data:o,error}=await sb.rpc('admin_overview');if(error||!o)return alert('No tens permís d’administrador.');const E=o.events,c=k=>E.filter(e=>e[k]).length;
- $('#app').innerHTML=`<section><div class="row"><h2 style="margin:0">Administració</h2><button class="s" onclick="render()">Torna als meus esdeveniments</button></div>
+async function admin(){if(EV.length)upd();const{data:o,error}=await sb.rpc('admin_overview');if(error||!o)return alert('No tens permís d’administrador.');const E=o.events,c=k=>E.filter(e=>e[k]).length;
+ $('#app').innerHTML=`<section><div class="row"><h2 style="margin:0">Administració</h2><button class="s" onclick="back()">Torna als meus esdeveniments</button></div>
  <div class="row">${[['Usuaris',o.users],['Esdeveniments',E.length],['Participants',E.reduce((a,e)=>a+e.n,0)],['Sortejos fets',c('drawn')],['Enllaços publicats',c('pub')]].map(([k,v])=>`<div><div class="big" style="font-size:34px;margin:0">${v}</div><div class="mu">${k}</div></div>`).join('')}</div></section>
  <section><h2>Tots els esdeveniments</h2><table>${E.map(e=>`<tr><td>${esc(e.name)}<div class="mu">${esc(e.owner||'sense propietari')}</div></td><td class="mu">${e.n} participants${e.drawn?' · sorteig fet':''}${e.pub?' · publicat':''}<br>${new Date(e.upd).toLocaleDateString('ca')}</td><td><button class="s" onclick="openEv('${e.id}')">Obre</button> <button class="x" aria-label="Elimina" onclick="delAny('${e.id}')">✕</button></td></tr>`).join('')||'<tr><td class="mu">Cap esdeveniment encara.</td></tr>'}</table></section>`}
 async function openEv(id){const{data,error}=await sb.from('events').select('id,name,data').eq('id',id).single();if(error)return alert(error.message);if(!EV.some(x=>x.id===id))EV.push(data);S={...blank(),...data.data};render()}
-async function delAny(id){if(!confirm('Eliminar aquest esdeveniment?'))return;await sb.from('events').delete().eq('id',id);EV=EV.filter(x=>x.id!==id);admin()}
+async function delAny(id){if(!confirm('Eliminar aquest esdeveniment?'))return;await sb.from('events').delete().eq('id',id);EV=EV.filter(x=>x.id!==id);if(id===S.id)S=EV[0]?{...blank(),...EV[0].data}:blank();admin()}
 /* ---- Vista del participant ---- */
 function viewP(tk){$('#sub').textContent='Tens un missatge secret';
  $('#app').innerHTML=`<div class="tag"><h2>Descobreix el teu amic invisible</h2><p class="mu" id="ms">Toca el botó quan estiguis sol o sola.</p><p id="cd" class="hide"><input id="pn" inputmode="numeric" aria-label="Codi" placeholder="Codi" style="max-width:150px;text-align:center"></p><p><button onclick="reveal()">Descobreix</button></p><p id="er" class="mu" role="alert"></p></div>`;
